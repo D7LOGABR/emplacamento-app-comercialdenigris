@@ -74,7 +74,8 @@ LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
-        df = pd.read_excel(file_path_or_buffer)
+        df = pd.read_excel(file_path_or_buffer, dayfirst=True)
+
         # Limpeza e conversão de tipos
         df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce")
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
