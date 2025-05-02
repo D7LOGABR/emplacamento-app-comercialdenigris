@@ -74,10 +74,10 @@ LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
-        df = pd.read_excel(file_path_or_buffer, dayfirst=True)
+        df = pd.read_excel(file_path_or_buffer)
 
         # Limpeza e conversão de tipos
-        df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce")
+        df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce", dayfirst=True)
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
         df["NOME DO CLIENTE"] = df["NOME DO CLIENTE"].astype(str).str.strip()
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
@@ -421,5 +421,5 @@ else:
 
 # --- Rodapé (Opcional) ---
 st.sidebar.divider()
-st.sidebar.markdown("Desenvolvido por Manus IA")
+st.sidebar.markdown("Desenvolvido por Gabriel Lopes")
 
