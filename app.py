@@ -193,10 +193,24 @@ st.sidebar.header("Atualizar Dados")
 uploaded_file = st.sidebar.file_uploader("Selecione o arquivo Excel (.xlsx)", type=["xlsx"])
 
 # Determinar qual arquivo usar (upload ou padrão)
-data_source = DEFAULT_EXCEL_FILE
+if "last_uploaded_file_name" not in st.session_state:
+    st.session_state["last_uploaded_file_name"] = None
+
 if uploaded_file is not None:
-    # Para usar o arquivo carregado, precisamos lê-lo em memória
-    data_source = BytesIO(uploaded_file.getvalue())
+    if uploaded_file.name != st.session_state["last_uploaded_file_name"]:
+        st.session_state["last_uploaded_file_name"] = uploaded_file.name
+        df_full = load_data(BytesIO(uploaded_file.getvalue()))
+        st.sidebar.success(f"Usando novo arquivo: {uploaded_file.name}")
+    else:
+        st.sidebar.info(f"Arquivo já carregado: {uploaded_file.name}")
+        df_full = load_data(BytesIO(uploaded_file.getvalue()))
+else:
+    if not os.path.exists(DEFAULT_EXCEL_FILE):
+        st.error("Nenhum arquivo de dados disponível. Faça o upload de um arquivo Excel.")
+        st.stop()
+    df_full = load_data(DEFAULT_EXCEL_FILE)
+    st.sidebar.info(f"Usando arquivo padrão: {os.path.basename(DEFAULT_EXCEL_FILE)}")
+
     st.sidebar.success(f"Usando arquivo carregado: {uploaded_file.name}")
     # Limpar cache se um novo arquivo for carregado
     # Nota: Streamlit pode não limpar o cache automaticamente só com isso.
