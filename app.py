@@ -200,7 +200,7 @@ if uploaded_file is not None:
     # Limpar cache se um novo arquivo for carregado
     # Nota: Streamlit pode não limpar o cache automaticamente só com isso.
     # Uma abordagem mais robusta envolveria gerenciar o estado do arquivo.
-    load_data.clear()
+    
 elif not os.path.exists(DEFAULT_EXCEL_FILE):
     st.error("Nenhum arquivo de dados disponível. Faça o upload de um arquivo Excel na barra lateral.")
     st.stop() # Interrompe a execução se não houver dados
