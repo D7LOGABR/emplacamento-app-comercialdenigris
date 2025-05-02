@@ -79,7 +79,7 @@ LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 
 # --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
-NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Substitua "TELEFONE1" pelo nome real da coluna no Excel
+NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Nome da coluna de telefone definido
 
 # --- Funções de Carregamento de Dados ---
 # @st.cache_data # Cache pode ser reativado se a performance for um problema, mas pode interferir com o upload
@@ -99,7 +99,7 @@ def load_data(file_path_or_buffer):
         else:
             df[NOME_COLUNA_ENDERECO] = "N/A"
 
-        if NOME_COLUNA_TELEFONE in df.columns and NOME_COLUNA_TELEFONE != "TELEFONE1":
+        if NOME_COLUNA_TELEFONE in df.columns and NOME_COLUNA_TELEFONE != "TELEFONE_PENDENTE":
             df[NOME_COLUNA_TELEFONE] = df[NOME_COLUNA_TELEFONE].astype(str).str.strip()
         else:
             # Criar coluna vazia se não existir ou se o nome não foi substituído
@@ -469,4 +469,3 @@ if os.path.exists(LOGO_WHITE_PATH):
 else:
     st.sidebar.warning("Logo branco não encontrado.")
 st.sidebar.caption("© De Nigris Distribuidora")
-
