@@ -70,7 +70,7 @@ LOGO_COLOR_PATH = os.path.join(DATA_DIR, "logo_denigris_colorido.png")
 LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 
 # --- Funções de Carregamento e Cache de Dados ---
-@st.cache_data(ttl=3600) # Cache por 1 hora
+
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
