@@ -77,6 +77,10 @@ LOGO_COLOR_PATH = os.path.join(DATA_DIR, "logo_denigris_colorido.png")
 LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 UPLOADED_TEMP_FILE = "/tmp/streamlit_uploaded_data.xlsx" # Local temporário para o arquivo carregado
 
+# --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
+NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
+NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Substitua "TELEFONE1" pelo nome real da coluna no Excel
+
 # --- Funções de Carregamento de Dados ---
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
@@ -88,10 +92,7 @@ def load_data(file_path_or_buffer):
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
         df["NOME DO CLIENTE"] = df["NOME DO CLIENTE"].astype(str).str.strip()
 
-        # Colunas opcionais (Endereço e Telefone)
-        NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
-        NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Substitua "TELEFONE1" pelo nome real da coluna no Excel
-
+        # Processar colunas opcionais usando nomes globais
         if NOME_COLUNA_ENDERECO in df.columns:
             df[NOME_COLUNA_ENDERECO] = df[NOME_COLUNA_ENDERECO].astype(str).str.strip()
         else:
@@ -255,7 +256,7 @@ if uploaded_file is not None:
             st.session_state["uploaded_file_path"] = UPLOADED_TEMP_FILE
             data_to_load = UPLOADED_TEMP_FILE
             load_trigger = "new_upload"
-            st.sidebar.success(f"Arquivo 	'{uploaded_file.name}	' carregado e salvo temporariamente.")
+            st.sidebar.success(f"Arquivo 	'{uploaded_file.name}'	 carregado e salvo temporariamente.") # Corrigido as aspas aqui
         else:
              # Mesmo arquivo carregado novamente, não precisa recarregar se já carregado
              data_to_load = st.session_state["uploaded_file_path"]
@@ -319,81 +320,42 @@ if df_full is None or df_full.empty:
     st.warning("Os dados não puderam ser carregados ou estão vazios. Verifique o arquivo ou a mensagem de erro acima.")
     st.stop()
 
-# --- PAINEL DE RESUMO INICIAL ---
-st.subheader("Resumo Geral da Base de Dados")
-
-# Calcular estatísticas gerais do df_full
-total_emplacamentos = len(df_full)
-total_clientes_unicos = df_full["CNPJ_NORMALIZED"].nunique()
-primeiro_ano = df_full["Ano"].min()
-ultimo_ano = df_full["Ano"].max()
-
-col_resumo1, col_resumo2, col_resumo3 = st.columns(3)
-with col_resumo1:
-    st.metric(label="Total de Emplacamentos Registrados", value=f"{total_emplacamentos:,}".replace(",", "."))
-with col_resumo2:
-    st.metric(label="Total de Clientes Únicos", value=f"{total_clientes_unicos:,}".replace(",", "."))
-with col_resumo3:
-    st.metric(label="Período Coberto", value=f"{primeiro_ano} - {ultimo_ano}")
-
-st.markdown("#### Emplacamentos por Ano")
-emplacamentos_por_ano = df_full["Ano"].value_counts().sort_index()
-if not emplacamentos_por_ano.empty:
-    st.bar_chart(emplacamentos_por_ano)
-else:
-    st.info("Não há dados de emplacamento por ano para exibir.")
-
-st.markdown("#### Emplacamentos por Marca e Ano")
-emplacamentos_marca_ano = df_full.groupby(["Ano", "Marca"]).size().reset_index(name="Quantidade")
-if not emplacamentos_marca_ano.empty:
-    # Pivotar para formato wide para possível visualização ou tabela
-    pivot_marca_ano = emplacamentos_marca_ano.pivot(index="Marca", columns="Ano", values="Quantidade").fillna(0).astype(int)
-    st.dataframe(pivot_marca_ano, use_container_width=True)
-
-    # Gráfico opcional (pode ficar muito poluído com muitas marcas/anos)
-    # fig_marca_ano = px.bar(emplacamentos_marca_ano, x='Ano', y='Quantidade', color='Marca',
-    #                        title='Emplacamentos por Marca ao Longo dos Anos', barmode='group')
-    # st.plotly_chart(fig_marca_ano, use_container_width=True)
-else:
-    st.info("Não há dados de emplacamento por marca e ano para exibir.")
-
-st.divider() # Divisor entre resumo e busca
-
-# --- Barra de Busca e Filtros --- 
+# --- Barra de Busca e Filtros (MOVENDO PARA CIMA) --- 
 st.subheader("Buscar Cliente Específico")
 search_query = st.text_input("Digite o Nome ou CNPJ do cliente:", "", key="search_input")
 search_button = st.button("Buscar", key="search_button")
 
-st.sidebar.header("Filtros Gerais (Afetam a Busca)")
+st.sidebar.header("Filtros Gerais (Afetam Busca e Resumo)") # Atualizado label
 all_brands = sorted(df_full["Marca"].dropna().unique())
 selected_brands = st.sidebar.multiselect("Filtrar por Marca:", all_brands)
 
 all_segments = sorted(df_full["Segmento"].dropna().unique())
 selected_segments = st.sidebar.multiselect("Filtrar por Segmento:", all_segments)
 
-df_filtered = df_full.copy() # Começa com tudo
-
-# Aplica filtros SE eles foram selecionados
+# Aplicar filtros ao DataFrame principal ANTES de qualquer cálculo
+df_display = df_full.copy()
 if selected_brands:
-    df_filtered = df_filtered[df_filtered["Marca"].isin(selected_brands)]
+    df_display = df_display[df_display["Marca"].isin(selected_brands)]
 if selected_segments:
-    df_filtered = df_filtered[df_filtered["Segmento"].isin(selected_segments)]
+    df_display = df_display[df_display["Segmento"].isin(selected_segments)]
 
 # --- Exibição dos Resultados da Busca --- 
+st.divider()
 
 if search_button and search_query:
-    st.markdown(f"### Resultados da Busca por: '{search_query}'")
+    st.markdown(f"### Resultados da Busca por: '{search_query}'") # Corrigido aspas
     # Normaliza a query para busca em CNPJ
     query_normalized = ''.join(filter(str.isdigit, str(search_query)))
 
+    # Busca no DataFrame JÁ FILTRADO (df_display)
     mask = (
-        df_filtered["NOME DO CLIENTE"].str.contains(search_query, case=False, na=False)
+        df_display["NOME DO CLIENTE"].str.contains(search_query, case=False, na=False)
     )
     # Adiciona busca por CNPJ normalizado apenas se a query parecer um CNPJ
     if query_normalized and len(query_normalized) > 5: # Heurística simples
-         mask = mask | df_filtered["CNPJ_NORMALIZED"].str.contains(query_normalized, case=False, na=False)
+         mask = mask | df_display["CNPJ_NORMALIZED"].str.contains(query_normalized, case=False, na=False)
 
-    results_df = df_filtered[mask]
+    results_df = df_display[mask]
 
     if results_df.empty:
         st.warning("Cliente não encontrado na base de dados (considerando os filtros aplicados, se houver).")
@@ -420,6 +382,7 @@ if search_button and search_query:
             client_name = latest_record["NOME DO CLIENTE"]
             client_cnpj_formatted = latest_record["CNPJ CLIENTE"]
             city_str = latest_record["NO_CIDADE"] if "NO_CIDADE" in latest_record and pd.notna(latest_record["NO_CIDADE"]) else "N/A"
+            # Usar nomes globais para endereço e telefone
             client_address = latest_record[NOME_COLUNA_ENDERECO]
             client_phone = latest_record[NOME_COLUNA_TELEFONE]
 
@@ -483,8 +446,44 @@ if search_button and search_query:
 elif search_button and not search_query:
     st.warning("Por favor, digite um nome ou CNPJ para buscar.")
 else:
-    # Se nenhuma busca foi feita, apenas o resumo geral é exibido (já está acima)
-    st.info("Digite um nome ou CNPJ acima para buscar detalhes de um cliente específico.")
+    # Se nenhuma busca foi feita, exibir o resumo geral
+    st.divider() # Adicionar divisor se a busca não foi feita
+    st.subheader("Resumo Geral da Base de Dados (Considerando Filtros)")
+
+    # Calcular estatísticas gerais do df_display (DataFrame filtrado)
+    total_emplacamentos_display = len(df_display)
+    total_clientes_unicos_display = df_display["CNPJ_NORMALIZED"].nunique()
+    
+    if not df_display.empty:
+        primeiro_ano_display = df_display["Ano"].min()
+        ultimo_ano_display = df_display["Ano"].max()
+    else:
+        primeiro_ano_display = "N/A"
+        ultimo_ano_display = "N/A"
+
+    col_resumo1, col_resumo2, col_resumo3 = st.columns(3)
+    with col_resumo1:
+        st.metric(label="Total de Emplacamentos (Filtro)", value=f"{total_emplacamentos_display:,}".replace(",", "."))
+    with col_resumo2:
+        st.metric(label="Total de Clientes Únicos (Filtro)", value=f"{total_clientes_unicos_display:,}".replace(",", "."))
+    with col_resumo3:
+        st.metric(label="Período Coberto (Filtro)", value=f"{primeiro_ano_display} - {ultimo_ano_display}")
+
+    st.markdown("#### Emplacamentos por Ano (Filtro)")
+    emplacamentos_por_ano_display = df_display['Ano'].value_counts().sort_index()
+    if not emplacamentos_por_ano_display.empty:
+        st.bar_chart(emplacamentos_por_ano_display)
+    else:
+        st.info("Não há dados de emplacamento por ano para exibir com os filtros aplicados.")
+
+    st.markdown("#### Emplacamentos por Marca e Ano (Filtro)")
+    emplacamentos_marca_ano_display = df_display.groupby(["Ano", "Marca"]).size().reset_index(name="Quantidade")
+    if not emplacamentos_marca_ano_display.empty:
+        # Pivotar para formato wide para possível visualização ou tabela
+        pivot_marca_ano_display = emplacamentos_marca_ano_display.pivot(index="Marca", columns="Ano", values="Quantidade").fillna(0).astype(int)
+        st.dataframe(pivot_marca_ano_display, use_container_width=True)
+    else:
+        st.info("Não há dados de emplacamento por marca e ano para exibir com os filtros aplicados.")
 
 # --- Rodapé (Opcional) ---
 st.sidebar.divider()
