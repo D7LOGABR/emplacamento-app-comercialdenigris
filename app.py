@@ -290,7 +290,7 @@ if needs_reload and data_to_process is not None:
     st.session_state["dataframe"] = load_data(data_to_process)
     if st.session_state["dataframe"] is not None:
         st.sidebar.success("Dados carregados/atualizados!")
-        st.experimental_rerun() # Força o rerender para UI refletir a mudança
+        st.rerun() # Força o rerender para UI refletir a mudança
     else:
         st.sidebar.error("Falha ao carregar/atualizar dados.")
         # Limpar estado se o carregamento falhar
@@ -469,3 +469,4 @@ if os.path.exists(LOGO_WHITE_PATH):
 else:
     st.sidebar.warning("Logo branco não encontrado.")
 st.sidebar.caption("© De Nigris Distribuidora")
+
