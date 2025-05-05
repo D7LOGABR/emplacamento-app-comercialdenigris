@@ -287,6 +287,9 @@ else:
 
 # 3. Carregar os dados se necessário
 if needs_reload and data_to_process is not None:
+    # Rebobinar o BytesIO antes de ler novamente
+    if isinstance(data_to_process, BytesIO):
+        data_to_process.seek(0)
     st.session_state["dataframe"] = load_data(data_to_process)
     if st.session_state["dataframe"] is not None:
         st.sidebar.success("Dados carregados/atualizados!")
