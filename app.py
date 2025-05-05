@@ -377,19 +377,19 @@ if search_button and search_query:
 
             col1_info, col2_info = st.columns(2)
             with col1_info:
-                st.markdown(f'"""<div class="info-card"><span class="label">Nome do Cliente:</span><span class="value">{client_name}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">CNPJ:</span><span class="value">{client_cnpj_formatted}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Endereço:</span><span class="value">{client_address}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Modelo(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_model)}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Concessionária(s) Mais Frequente(s):</span><span class="value">{format_list(most_frequent_dealer)}</span></div>"""', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Nome do Cliente:</span><span class="value">{client_name}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">CNPJ:</span><span class="value">{client_cnpj_formatted}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Endereço:</span><span class="value">{client_address}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Modelo(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_model)}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Concessionária(s) Mais Frequente(s):</span><span class="value">{format_list(most_frequent_dealer)}</span></div>', unsafe_allow_html=True)
 
             with col2_info:
-                st.markdown(f'"""<div class="info-card"><span class="label">Cidade:</span><span class="value">{city_str}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Telefone:</span><span class="value">{client_phone}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Total Emplacado (na base):</span><span class="value">{total_plated}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Último Emplacamento:</span><span class="value">{last_plate_date_str}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Marca(s) Mais Comprada(s):</span><span class="value">{format_list(most_frequent_brand)}</span></div>"""', unsafe_allow_html=True)
-                st.markdown(f'"""<div class="info-card"><span class="label">Segmento(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_segment)}</span></div>"""', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Cidade:</span><span class="value">{city_str}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Telefone:</span><span class="value">{client_phone}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Total Emplacado (na base):</span><span class="value">{total_plated}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Último Emplacamento:</span><span class="value">{last_plate_date_str}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Marca(s) Mais Comprada(s):</span><span class="value">{format_list(most_frequent_brand)}</span></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="info-card"><span class="label">Segmento(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_segment)}</span></div>', unsafe_allow_html=True)
 
             st.divider()
 
@@ -465,7 +465,8 @@ else:
 # --- Rodapé (Opcional) ---
 st.sidebar.divider()
 if os.path.exists(LOGO_WHITE_PATH):
-    st.sidebar.image(LOGO_WHITE_PATH, use_column_width=True)
+    st.sidebar.image(LOGO_WHITE_PATH, use_container_width=True)
 else:
     st.sidebar.warning("Logo branco não encontrado.")
 st.sidebar.caption("© De Nigris Distribuidora")
+
