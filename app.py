@@ -67,6 +67,18 @@ st.markdown("""
         padding: 10px 15px;
         border-left: 5px solid #6c757d; /* Cinza */
     }
+    /* Estilo para tabela de histórico detalhado */
+    .history-table {
+        margin-top: 1rem;
+        margin-bottom: 2rem;
+    }
+    .history-table th {
+        background-color: #e9ecef;
+        color: #003366;
+    }
+    .history-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -361,43 +373,34 @@ if search_button and search_query:
         if not client_df.empty:
             client_df_sorted = client_df.sort_values(by="Data emplacamento", ascending=False)
             latest_record = client_df_sorted.iloc[0]
-
+            
             client_name = latest_record["NOME DO CLIENTE"]
-            client_cnpj_formatted = latest_record["CNPJ CLIENTE"]
-            city_str = latest_record["NO_CIDADE"] if "NO_CIDADE" in latest_record and pd.notna(latest_record["NO_CIDADE"]) else "N/A"
-            client_address = latest_record[NOME_COLUNA_ENDERECO]
-            client_phone = latest_record[NOME_COLUNA_TELEFONE]
-
-            total_plated = len(client_df)
-            last_plate_date_obj = client_df["Data emplacamento"].dropna().max()
-            last_plate_date_str = last_plate_date_obj.strftime("%d/%m/%Y") if pd.notna(last_plate_date_obj) else "N/A"
-            most_frequent_model = get_modes(client_df["Modelo"])
-            most_frequent_brand = get_modes(client_df["Marca"])
-            most_frequent_segment = get_modes(client_df["Segmento"])
-            most_frequent_dealer = get_modes(client_df["Concessionário"])
-
-            st.markdown(f"#### Detalhes de: {client_name}")
-
-            col1_info, col2_info = st.columns(2)
-            with col1_info:
-                st.markdown(f'<div class="info-card"><span class="label">Nome do Cliente:</span><span class="value">{client_name}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">CNPJ:</span><span class="value">{client_cnpj_formatted}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Endereço:</span><span class="value">{client_address}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Modelo(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_model)}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Concessionária(s) Mais Frequente(s):</span><span class="value">{format_list(most_frequent_dealer)}</span></div>', unsafe_allow_html=True)
-
-            with col2_info:
-                st.markdown(f'<div class="info-card"><span class="label">Cidade:</span><span class="value">{city_str}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Telefone:</span><span class="value">{client_phone}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Total Emplacado (na base):</span><span class="value">{total_plated}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Último Emplacamento:</span><span class="value">{last_plate_date_str}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Marca(s) Mais Comprada(s):</span><span class="value">{format_list(most_frequent_brand)}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Segmento(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_segment)}</span></div>', unsafe_allow_html=True)
-
-            st.divider()
-
-            # --- Previsão e Insight (MOVENDO PARA CIMA DO GRÁFICO) ---
-            st.markdown("#### Previsão e Insight de Vendas")
+            client_cnpj = latest_record["CNPJ CLIENTE"]
+            client_address = latest_record.get(NOME_COLUNA_ENDERECO, "N/A")
+            client_phone = latest_record.get(NOME_COLUNA_TELEFONE, "N/A")
+            
+            st.subheader(f"Detalhes do Cliente: {client_name}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"<div class='info-card'><span class='label'>CNPJ:</span><span class='value'>{client_cnpj}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card'><span class='label'>Endereço:</span><span class='value'>{client_address}</span></div>", unsafe_allow_html=True)
+            with col2:
+                st.markdown(f"<div class='info-card'><span class='label'>Telefone:</span><span class='value'>{client_phone}</span></div>", unsafe_allow_html=True)
+                
+                # Calcular estatísticas
+                total_plated = len(client_df_sorted)
+                first_plate_date = client_df_sorted["Data emplacamento"].min()
+                last_plate_date = client_df_sorted["Data emplacamento"].max()
+                
+                first_plate_date_str = first_plate_date.strftime("%d/%m/%Y") if pd.notna(first_plate_date) else "N/A"
+                last_plate_date_str = last_plate_date.strftime("%d/%m/%Y") if pd.notna(last_plate_date) else "N/A"
+                last_plate_date_obj = last_plate_date if pd.notna(last_plate_date) else None
+                
+                st.markdown(f"<div class='info-card'><span class='label'>Total de Emplacamentos:</span><span class='value'>{total_plated}</span></div>", unsafe_allow_html=True)
+            
+            st.markdown("#### Previsão e Insights")
+            
             valid_dates = client_df["Data emplacamento"].dropna().tolist()
             prediction_text, predicted_date_obj = calculate_next_purchase_prediction(valid_dates)
             sales_pitch = get_sales_pitch(last_plate_date_obj, predicted_date_obj, total_plated)
@@ -422,6 +425,28 @@ if search_button and search_query:
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("Não há histórico de compras suficiente para gerar gráfico.")
+                
+            # NOVA SEÇÃO: Lista detalhada de emplacamentos com chassi, modelo e concessionária
+            st.markdown("#### Detalhamento dos Emplacamentos")
+            
+            # Verificar se as colunas necessárias existem
+            required_cols = ["Data emplacamento", "Modelo", "Chassi", "Concessionária"]
+            missing_cols = [col for col in required_cols if col not in client_df.columns]
+            
+            if missing_cols:
+                st.warning(f"Algumas informações não estão disponíveis na planilha: {', '.join(missing_cols)}")
+                # Criar colunas vazias para as que faltam
+                for col in missing_cols:
+                    client_df[col] = "N/A"
+            
+            # Preparar DataFrame para exibição
+            detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", "Concessionária"]].copy()
+            detail_df["Data emplacamento"] = detail_df["Data emplacamento"].dt.strftime("%d/%m/%Y")
+            detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
+            
+            # Exibir tabela detalhada
+            st.dataframe(detail_df, use_container_width=True, hide_index=True)
+            
         else:
             st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
 elif search_button and not search_query:
@@ -472,4 +497,3 @@ if os.path.exists(LOGO_WHITE_PATH):
 else:
     st.sidebar.warning("Logo branco não encontrado.")
 st.sidebar.caption("© De Nigris Distribuidora")
-
