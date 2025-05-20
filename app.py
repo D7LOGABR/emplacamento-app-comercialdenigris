@@ -67,18 +67,6 @@ st.markdown("""
         padding: 10px 15px;
         border-left: 5px solid #6c757d; /* Cinza */
     }
-    /* Estilo para tabela de histórico detalhado */
-    .history-table {
-        margin-top: 1rem;
-        margin-bottom: 2rem;
-    }
-    .history-table th {
-        background-color: #e9ecef;
-        color: #003366;
-    }
-    .history-table tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -87,14 +75,12 @@ DATA_DIR = "data"
 DEFAULT_EXCEL_FILE = os.path.join(DATA_DIR, "EMPLACAMENTO ANUAL - CAMINHÕES.xlsx")
 LOGO_COLOR_PATH = os.path.join(DATA_DIR, "logo_denigris_colorido.png")
 LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
-# UPLOADED_TEMP_FILE = "/tmp/streamlit_uploaded_data.xlsx" # REMOVIDO - Não usaremos mais arquivo temporário
 
 # --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
 NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Nome da coluna de telefone definido
 
 # --- Funções de Carregamento de Dados ---
-# @st.cache_data # Cache pode ser reativado se a performance for um problema, mas pode interferir com o upload
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
@@ -116,6 +102,22 @@ def load_data(file_path_or_buffer):
         else:
             # Criar coluna vazia se não existir ou se o nome não foi substituído
             df[NOME_COLUNA_TELEFONE] = "N/A"
+
+        # Garantir que as colunas para o detalhamento existam
+        if "Chassi" not in df.columns:
+            df["Chassi"] = "N/A"
+        else:
+            df["Chassi"] = df["Chassi"].astype(str).str.strip()
+            
+        if "Modelo" not in df.columns:
+            df["Modelo"] = "N/A"
+        else:
+            df["Modelo"] = df["Modelo"].astype(str).str.strip()
+            
+        if "Concessionária" not in df.columns:
+            df["Concessionária"] = "N/A"
+        else:
+            df["Concessionária"] = df["Concessionária"].astype(str).str.strip()
 
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
         df["Ano"] = df["Data emplacamento"].dt.year
@@ -425,19 +427,9 @@ if search_button and search_query:
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("Não há histórico de compras suficiente para gerar gráfico.")
-                
+            
             # NOVA SEÇÃO: Lista detalhada de emplacamentos com chassi, modelo e concessionária
             st.markdown("#### Detalhamento dos Emplacamentos")
-            
-            # Verificar se as colunas necessárias existem
-            required_cols = ["Data emplacamento", "Modelo", "Chassi", "Concessionária"]
-            missing_cols = [col for col in required_cols if col not in client_df.columns]
-            
-            if missing_cols:
-                st.warning(f"Algumas informações não estão disponíveis na planilha: {', '.join(missing_cols)}")
-                # Criar colunas vazias para as que faltam
-                for col in missing_cols:
-                    client_df[col] = "N/A"
             
             # Preparar DataFrame para exibição
             detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", "Concessionária"]].copy()
@@ -445,7 +437,7 @@ if search_button and search_query:
             detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
             
             # Exibir tabela detalhada
-            st.dataframe(detail_df, use_container_width=True, hide_index=True)
+            st.dataframe(detail_df, use_container_width=True)
             
         else:
             st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
