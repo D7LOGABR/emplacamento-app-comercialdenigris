@@ -67,6 +67,18 @@ st.markdown("""
         padding: 10px 15px;
         border-left: 5px solid #6c757d; /* Cinza */
     }
+    /* Estilo para tabela de detalhamento */
+    .dataframe {
+        font-size: 0.9rem;
+    }
+    .dataframe th {
+        background-color: #f1f3f5;
+        color: #003366;
+        font-weight: bold;
+    }
+    .dataframe tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -78,14 +90,31 @@ LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 
 # --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
-NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Nome da coluna de telefone definido
+NOME_COLUNA_TELEFONE = "TELEFONE1"
+NOME_COLUNA_CIDADE = "NO_CIDADE"  # Coluna para cidade
+NOME_COLUNA_CONCESSIONARIA = "CONCESSIONÁRIA"  # Nome exato da coluna de concessionária
 
 # --- Funções de Carregamento de Dados ---
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
         df = pd.read_excel(file_path_or_buffer)
-
+        
+        # Verificar e normalizar nomes de colunas (remover espaços extras, etc.)
+        df.columns = [col.strip() for col in df.columns]
+        
+        # Verificar variações do nome da coluna concessionária
+        concessionaria_variations = ["CONCESSIONÁRIA", "CONCESSIONARIA", "Concessionária", "Concessionaria", "CONC", "LOJA"]
+        found_concessionaria_col = None
+        for var in concessionaria_variations:
+            if var in df.columns:
+                found_concessionaria_col = var
+                break
+        
+        # Se encontrou uma variação, renomear para o padrão
+        if found_concessionaria_col:
+            df.rename(columns={found_concessionaria_col: NOME_COLUNA_CONCESSIONARIA}, inplace=True)
+        
         # Limpeza e conversão de tipos (com dayfirst=True)
         df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce", dayfirst=True)
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
@@ -97,27 +126,54 @@ def load_data(file_path_or_buffer):
         else:
             df[NOME_COLUNA_ENDERECO] = "N/A"
 
-        if NOME_COLUNA_TELEFONE in df.columns and NOME_COLUNA_TELEFONE != "TELEFONE_PENDENTE":
+        if NOME_COLUNA_TELEFONE in df.columns:
             df[NOME_COLUNA_TELEFONE] = df[NOME_COLUNA_TELEFONE].astype(str).str.strip()
         else:
-            # Criar coluna vazia se não existir ou se o nome não foi substituído
             df[NOME_COLUNA_TELEFONE] = "N/A"
+            
+        if NOME_COLUNA_CIDADE in df.columns:
+            df[NOME_COLUNA_CIDADE] = df[NOME_COLUNA_CIDADE].astype(str).str.strip()
+        else:
+            df[NOME_COLUNA_CIDADE] = "N/A"
 
         # Garantir que as colunas para o detalhamento existam
         if "Chassi" not in df.columns:
-            df["Chassi"] = "N/A"
-        else:
-            df["Chassi"] = df["Chassi"].astype(str).str.strip()
+            chassi_variations = ["CHASSI", "Chassi", "chassi", "CHASSIS", "Chassis", "chassis", "CHASSÍS", "Chassís"]
+            found_chassi_col = None
+            for var in chassi_variations:
+                if var in df.columns:
+                    found_chassi_col = var
+                    break
+            
+            if found_chassi_col:
+                df.rename(columns={found_chassi_col: "Chassi"}, inplace=True)
+            else:
+                df["Chassi"] = "N/A"
+        
+        df["Chassi"] = df["Chassi"].astype(str).str.strip()
             
         if "Modelo" not in df.columns:
-            df["Modelo"] = "N/A"
-        else:
-            df["Modelo"] = df["Modelo"].astype(str).str.strip()
+            modelo_variations = ["MODELO", "modelo", "Model", "model", "VEÍCULO", "Veículo", "veículo"]
+            found_modelo_col = None
+            for var in modelo_variations:
+                if var in df.columns:
+                    found_modelo_col = var
+                    break
             
-        if "Concessionária" not in df.columns:
-            df["Concessionária"] = "N/A"
+            if found_modelo_col:
+                df.rename(columns={found_modelo_col: "Modelo"}, inplace=True)
+            else:
+                df["Modelo"] = "N/A"
+        
+        df["Modelo"] = df["Modelo"].astype(str).str.strip()
+            
+        if NOME_COLUNA_CONCESSIONARIA not in df.columns:
+            df[NOME_COLUNA_CONCESSIONARIA] = "N/A"
         else:
-            df["Concessionária"] = df["Concessionária"].astype(str).str.strip()
+            df[NOME_COLUNA_CONCESSIONARIA] = df[NOME_COLUNA_CONCESSIONARIA].astype(str).str.strip()
+            # Substituir valores vazios por N/A
+            df[NOME_COLUNA_CONCESSIONARIA] = df[NOME_COLUNA_CONCESSIONARIA].replace('', 'N/A')
+            df[NOME_COLUNA_CONCESSIONARIA] = df[NOME_COLUNA_CONCESSIONARIA].replace('nan', 'N/A')
 
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
         df["Ano"] = df["Data emplacamento"].dt.year
@@ -125,7 +181,8 @@ def load_data(file_path_or_buffer):
 
         # Remover linhas onde 'Ano' é NaN (resultante de datas inválidas)
         df.dropna(subset=["Ano"], inplace=True)
-        df["Ano"] = df["Ano"].astype(int)
+        if not df.empty:
+            df["Ano"] = df["Ano"].astype(int)
 
         return df
     except FileNotFoundError:
@@ -139,6 +196,10 @@ def load_data(file_path_or_buffer):
 # --- Funções Auxiliares ---
 def get_modes(series):
     cleaned_series = series.dropna().astype(str)
+    cleaned_series = cleaned_series[cleaned_series != "N/A"]
+    cleaned_series = cleaned_series[cleaned_series != "nan"]
+    cleaned_series = cleaned_series[cleaned_series != ""]
+    
     if cleaned_series.empty:
         return ["N/A"]
     counts = Counter(cleaned_series)
@@ -380,26 +441,38 @@ if search_button and search_query:
             client_cnpj = latest_record["CNPJ CLIENTE"]
             client_address = latest_record.get(NOME_COLUNA_ENDERECO, "N/A")
             client_phone = latest_record.get(NOME_COLUNA_TELEFONE, "N/A")
+            client_city = latest_record.get(NOME_COLUNA_CIDADE, "N/A")
+            
+            # Calcular estatísticas para informações iniciais
+            total_plated = len(client_df_sorted)
+            first_plate_date = client_df_sorted["Data emplacamento"].min()
+            last_plate_date = client_df_sorted["Data emplacamento"].max()
+            
+            first_plate_date_str = first_plate_date.strftime("%d/%m/%Y") if pd.notna(first_plate_date) else "N/A"
+            last_plate_date_str = last_plate_date.strftime("%d/%m/%Y") if pd.notna(last_plate_date) else "N/A"
+            last_plate_date_obj = last_plate_date if pd.notna(last_plate_date) else None
+            
+            # Obter preferências do cliente
+            preferred_models = get_modes(client_df["Modelo"])
+            preferred_brands = get_modes(client_df["Marca"])
+            preferred_concessionarias = get_modes(client_df[NOME_COLUNA_CONCESSIONARIA])
             
             st.subheader(f"Detalhes do Cliente: {client_name}")
             
-            col1, col2 = st.columns(2)
+            # Informações básicas do cliente em 3 colunas
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown(f"<div class='info-card'><span class='label'>CNPJ:</span><span class='value'>{client_cnpj}</span></div>", unsafe_allow_html=True)
                 st.markdown(f"<div class='info-card'><span class='label'>Endereço:</span><span class='value'>{client_address}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card'><span class='label'>Cidade:</span><span class='value'>{client_city}</span></div>", unsafe_allow_html=True)
             with col2:
                 st.markdown(f"<div class='info-card'><span class='label'>Telefone:</span><span class='value'>{client_phone}</span></div>", unsafe_allow_html=True)
-                
-                # Calcular estatísticas
-                total_plated = len(client_df_sorted)
-                first_plate_date = client_df_sorted["Data emplacamento"].min()
-                last_plate_date = client_df_sorted["Data emplacamento"].max()
-                
-                first_plate_date_str = first_plate_date.strftime("%d/%m/%Y") if pd.notna(first_plate_date) else "N/A"
-                last_plate_date_str = last_plate_date.strftime("%d/%m/%Y") if pd.notna(last_plate_date) else "N/A"
-                last_plate_date_obj = last_plate_date if pd.notna(last_plate_date) else None
-                
                 st.markdown(f"<div class='info-card'><span class='label'>Total de Emplacamentos:</span><span class='value'>{total_plated}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card'><span class='label'>Última Compra:</span><span class='value'>{last_plate_date_str}</span></div>", unsafe_allow_html=True)
+            with col3:
+                st.markdown(f"<div class='info-card'><span class='label'>Modelo Mais Comprado:</span><span class='value'>{format_list(preferred_models)}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card'><span class='label'>Marca Mais Frequente:</span><span class='value'>{format_list(preferred_brands)}</span></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='info-card'><span class='label'>Concessionária Mais Frequente:</span><span class='value'>{format_list(preferred_concessionarias)}</span></div>", unsafe_allow_html=True)
             
             st.markdown("#### Previsão e Insights")
             
@@ -432,7 +505,7 @@ if search_button and search_query:
             st.markdown("#### Detalhamento dos Emplacamentos")
             
             # Preparar DataFrame para exibição
-            detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", "Concessionária"]].copy()
+            detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", NOME_COLUNA_CONCESSIONARIA]].copy()
             detail_df["Data emplacamento"] = detail_df["Data emplacamento"].dt.strftime("%d/%m/%Y")
             detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
             
