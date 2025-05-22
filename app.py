@@ -150,9 +150,9 @@ def load_data(file_path_or_buffer):
             
         # Garantir que a coluna concessionário tenha valores válidos
         df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].astype(str).str.strip()
-        # Substituir valores vazios ou 'nan' por N/A
+        # Substituir valores vazios ou 'nan' por N/A - CORRIGIDO: removido parâmetro 'case'
         df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace("", "N/A")
-        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace("nan", "N/A", case=False)
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace("nan", "N/A")
         df[NOME_COLUNA_CONCESSIONARIO].fillna("N/A", inplace=True)
 
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
