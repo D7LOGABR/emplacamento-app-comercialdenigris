@@ -24,18 +24,14 @@ st.markdown("""
         padding-left: 3rem;
         padding-right: 3rem;
     }
-    /* Estilo para os cards de informação (Layout da Imagem) */
+    /* Estilo para os cards de informação */
     .info-card {
         background-color: #f8f9fa;
         border-radius: 8px;
         padding: 15px;
-        margin-bottom: 20px; /* Espaçamento entre cards */
+        margin-bottom: 20px;
         border-left: 5px solid #0055a4; /* Azul De Nigris */
         position: relative;
-        min-height: 80px; /* Altura mínima para alinhar */
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
     }
     .info-card .label {
         font-weight: bold;
@@ -100,7 +96,7 @@ LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
 NOME_COLUNA_TELEFONE = "TELEFONE1"
 NOME_COLUNA_CIDADE = "NO_CIDADE"  # Coluna para cidade
-NOME_COLUNA_CONCESSIONARIO = "Concessionário"  # Nome exato da coluna de concessionário (confirmado no Excel)
+NOME_COLUNA_CONCESSIONARIO = "concessionário"  # Nome exato da coluna de concessionário (coluna F)
 
 # --- Funções de Carregamento de Dados ---
 def load_data(file_path_or_buffer):
@@ -108,13 +104,32 @@ def load_data(file_path_or_buffer):
     try:
         df = pd.read_excel(file_path_or_buffer)
         
-        # Verificar e normalizar nomes de colunas (remover espaços extras)
+        # Verificar e normalizar nomes de colunas (remover espaços extras, etc.)
         df.columns = [col.strip() for col in df.columns]
         
-        # Verificar se a coluna concessionário existe com o nome exato
+        # Verificar se a coluna concessionário existe
         if NOME_COLUNA_CONCESSIONARIO not in df.columns:
-            st.warning(f"A coluna 	'{NOME_COLUNA_CONCESSIONARIO}	' não foi encontrada na planilha. Verifique o nome exato. A coluna será criada com valor 'N/A'.")
-            df[NOME_COLUNA_CONCESSIONARIO] = "N/A"
+            # Verificar variações do nome da coluna concessionário
+            concessionario_variations = ["concessionário", "concessionario", "Concessionário", "Concessionaria", 
+                                        "CONCESSIONÁRIO", "CONCESSIONARIO", "CONC", "LOJA", "Conc", "Loja"]
+            found_concessionario_col = None
+            
+            # Imprimir todas as colunas para debug
+            print("Colunas disponíveis:", df.columns.tolist())
+            
+            for var in concessionario_variations:
+                if var in df.columns:
+                    found_concessionario_col = var
+                    break
+            
+            # Se encontrou uma variação, renomear para o padrão
+            if found_concessionario_col:
+                df.rename(columns={found_concessionario_col: NOME_COLUNA_CONCESSIONARIO}, inplace=True)
+                print(f"Coluna '{found_concessionario_col}' renomeada para '{NOME_COLUNA_CONCESSIONARIO}'")
+            else:
+                # Se não encontrou, criar a coluna
+                df[NOME_COLUNA_CONCESSIONARIO] = "N/A"
+                print(f"Coluna '{NOME_COLUNA_CONCESSIONARIO}' não encontrada. Criada com valor padrão 'N/A'")
         
         # Limpeza e conversão de tipos (com dayfirst=True)
         df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce", dayfirst=True)
@@ -139,21 +154,40 @@ def load_data(file_path_or_buffer):
 
         # Garantir que as colunas para o detalhamento existam
         if "Chassi" not in df.columns:
-            df["Chassi"] = "N/A"
-        else:
-            df["Chassi"] = df["Chassi"].astype(str).str.strip()
+            chassi_variations = ["CHASSI", "Chassi", "chassi", "CHASSIS", "Chassis", "chassis", "CHASSÍS", "Chassís"]
+            found_chassi_col = None
+            for var in chassi_variations:
+                if var in df.columns:
+                    found_chassi_col = var
+                    break
+            
+            if found_chassi_col:
+                df.rename(columns={found_chassi_col: "Chassi"}, inplace=True)
+            else:
+                df["Chassi"] = "N/A"
+        
+        df["Chassi"] = df["Chassi"].astype(str).str.strip()
             
         if "Modelo" not in df.columns:
-            df["Modelo"] = "N/A"
-        else:
-            df["Modelo"] = df["Modelo"].astype(str).str.strip()
+            modelo_variations = ["MODELO", "modelo", "Model", "model", "VEÍCULO", "Veículo", "veículo"]
+            found_modelo_col = None
+            for var in modelo_variations:
+                if var in df.columns:
+                    found_modelo_col = var
+                    break
+            
+            if found_modelo_col:
+                df.rename(columns={found_modelo_col: "Modelo"}, inplace=True)
+            else:
+                df["Modelo"] = "N/A"
+        
+        df["Modelo"] = df["Modelo"].astype(str).str.strip()
             
         # Garantir que a coluna concessionário tenha valores válidos
         df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].astype(str).str.strip()
-        # Substituir valores vazios ou 'nan' por N/A - CORRIGIDO: removido parâmetro 'case'
-        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace("", "N/A")
-        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace("nan", "N/A")
-        df[NOME_COLUNA_CONCESSIONARIO].fillna("N/A", inplace=True)
+        # Substituir valores vazios por N/A
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace('', 'N/A')
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace('nan', 'N/A')
 
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
         df["Ano"] = df["Data emplacamento"].dt.year
@@ -386,8 +420,8 @@ if selected_segments:
 st.divider()
 
 if search_button and search_query:
-    st.markdown(f"### Resultados da Busca por: 	'{search_query}'")
-    query_normalized = 	''.join(filter(str.isdigit, str(search_query)))
+    st.markdown(f"### Resultados da Busca por: '{search_query}'")
+    query_normalized = ''.join(filter(str.isdigit, str(search_query)))
 
     mask = (
         df_display["NOME DO CLIENTE"].str.contains(search_query, case=False, na=False)
@@ -545,8 +579,6 @@ if search_button and search_query:
             # Preparar DataFrame para exibição
             detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", NOME_COLUNA_CONCESSIONARIO]].copy()
             detail_df["Data emplacamento"] = detail_df["Data emplacamento"].dt.strftime("%d/%m/%Y")
-            # Renomear a coluna para exibição na tabela
-            detail_df.rename(columns={NOME_COLUNA_CONCESSIONARIO: "Concessionária"}, inplace=True)
             detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
             
             # Exibir tabela detalhada
