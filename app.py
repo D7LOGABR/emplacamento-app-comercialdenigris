@@ -29,17 +29,21 @@ st.markdown("""
         background-color: #f8f9fa;
         border-radius: 8px;
         padding: 15px;
-        margin-bottom: 10px;
+        margin-bottom: 20px;
         border-left: 5px solid #0055a4; /* Azul De Nigris */
+        position: relative;
     }
     .info-card .label {
         font-weight: bold;
         color: #003366; /* Azul escuro De Nigris */
         display: block;
-        margin-bottom: 3px;
+        margin-bottom: 5px;
+        font-size: 16px;
     }
     .info-card .value {
         color: #333;
+        font-size: 18px;
+        font-weight: 500;
     }
     /* Títulos */
     h1, h2, h3 {
@@ -67,6 +71,18 @@ st.markdown("""
         padding: 10px 15px;
         border-left: 5px solid #6c757d; /* Cinza */
     }
+    /* Estilo para tabela de detalhamento */
+    .dataframe {
+        font-size: 0.9rem;
+    }
+    .dataframe th {
+        background-color: #f1f3f5;
+        color: #003366;
+        font-weight: bold;
+    }
+    .dataframe tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,19 +91,46 @@ DATA_DIR = "data"
 DEFAULT_EXCEL_FILE = os.path.join(DATA_DIR, "EMPLACAMENTO ANUAL - CAMINHÕES.xlsx")
 LOGO_COLOR_PATH = os.path.join(DATA_DIR, "logo_denigris_colorido.png")
 LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
-# UPLOADED_TEMP_FILE = "/tmp/streamlit_uploaded_data.xlsx" # REMOVIDO - Não usaremos mais arquivo temporário
 
 # --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
-NOME_COLUNA_TELEFONE = "TELEFONE1" # <<< Nome da coluna de telefone definido
+NOME_COLUNA_TELEFONE = "TELEFONE1"
+NOME_COLUNA_CIDADE = "NO_CIDADE"  # Coluna para cidade
+NOME_COLUNA_CONCESSIONARIO = "concessionário"  # Nome exato da coluna de concessionário (coluna F)
 
 # --- Funções de Carregamento de Dados ---
-# @st.cache_data # Cache pode ser reativado se a performance for um problema, mas pode interferir com o upload
 def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
         df = pd.read_excel(file_path_or_buffer)
-
+        
+        # Verificar e normalizar nomes de colunas (remover espaços extras, etc.)
+        df.columns = [col.strip() for col in df.columns]
+        
+        # Verificar se a coluna concessionário existe
+        if NOME_COLUNA_CONCESSIONARIO not in df.columns:
+            # Verificar variações do nome da coluna concessionário
+            concessionario_variations = ["concessionário", "concessionario", "Concessionário", "Concessionaria", 
+                                        "CONCESSIONÁRIO", "CONCESSIONARIO", "CONC", "LOJA", "Conc", "Loja"]
+            found_concessionario_col = None
+            
+            # Imprimir todas as colunas para debug
+            print("Colunas disponíveis:", df.columns.tolist())
+            
+            for var in concessionario_variations:
+                if var in df.columns:
+                    found_concessionario_col = var
+                    break
+            
+            # Se encontrou uma variação, renomear para o padrão
+            if found_concessionario_col:
+                df.rename(columns={found_concessionario_col: NOME_COLUNA_CONCESSIONARIO}, inplace=True)
+                print(f"Coluna '{found_concessionario_col}' renomeada para '{NOME_COLUNA_CONCESSIONARIO}'")
+            else:
+                # Se não encontrou, criar a coluna
+                df[NOME_COLUNA_CONCESSIONARIO] = "N/A"
+                print(f"Coluna '{NOME_COLUNA_CONCESSIONARIO}' não encontrada. Criada com valor padrão 'N/A'")
+        
         # Limpeza e conversão de tipos (com dayfirst=True)
         df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce", dayfirst=True)
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
@@ -99,11 +142,52 @@ def load_data(file_path_or_buffer):
         else:
             df[NOME_COLUNA_ENDERECO] = "N/A"
 
-        if NOME_COLUNA_TELEFONE in df.columns and NOME_COLUNA_TELEFONE != "TELEFONE_PENDENTE":
+        if NOME_COLUNA_TELEFONE in df.columns:
             df[NOME_COLUNA_TELEFONE] = df[NOME_COLUNA_TELEFONE].astype(str).str.strip()
         else:
-            # Criar coluna vazia se não existir ou se o nome não foi substituído
             df[NOME_COLUNA_TELEFONE] = "N/A"
+            
+        if NOME_COLUNA_CIDADE in df.columns:
+            df[NOME_COLUNA_CIDADE] = df[NOME_COLUNA_CIDADE].astype(str).str.strip()
+        else:
+            df[NOME_COLUNA_CIDADE] = "N/A"
+
+        # Garantir que as colunas para o detalhamento existam
+        if "Chassi" not in df.columns:
+            chassi_variations = ["CHASSI", "Chassi", "chassi", "CHASSIS", "Chassis", "chassis", "CHASSÍS", "Chassís"]
+            found_chassi_col = None
+            for var in chassi_variations:
+                if var in df.columns:
+                    found_chassi_col = var
+                    break
+            
+            if found_chassi_col:
+                df.rename(columns={found_chassi_col: "Chassi"}, inplace=True)
+            else:
+                df["Chassi"] = "N/A"
+        
+        df["Chassi"] = df["Chassi"].astype(str).str.strip()
+            
+        if "Modelo" not in df.columns:
+            modelo_variations = ["MODELO", "modelo", "Model", "model", "VEÍCULO", "Veículo", "veículo"]
+            found_modelo_col = None
+            for var in modelo_variations:
+                if var in df.columns:
+                    found_modelo_col = var
+                    break
+            
+            if found_modelo_col:
+                df.rename(columns={found_modelo_col: "Modelo"}, inplace=True)
+            else:
+                df["Modelo"] = "N/A"
+        
+        df["Modelo"] = df["Modelo"].astype(str).str.strip()
+            
+        # Garantir que a coluna concessionário tenha valores válidos
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].astype(str).str.strip()
+        # Substituir valores vazios por N/A
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace('', 'N/A')
+        df[NOME_COLUNA_CONCESSIONARIO] = df[NOME_COLUNA_CONCESSIONARIO].replace('nan', 'N/A')
 
         df["CNPJ_NORMALIZED"] = df["CNPJ CLIENTE"].str.replace(r"[.\\/-]", "", regex=True)
         df["Ano"] = df["Data emplacamento"].dt.year
@@ -111,7 +195,8 @@ def load_data(file_path_or_buffer):
 
         # Remover linhas onde 'Ano' é NaN (resultante de datas inválidas)
         df.dropna(subset=["Ano"], inplace=True)
-        df["Ano"] = df["Ano"].astype(int)
+        if not df.empty:
+            df["Ano"] = df["Ano"].astype(int)
 
         return df
     except FileNotFoundError:
@@ -125,6 +210,10 @@ def load_data(file_path_or_buffer):
 # --- Funções Auxiliares ---
 def get_modes(series):
     cleaned_series = series.dropna().astype(str)
+    cleaned_series = cleaned_series[cleaned_series != "N/A"]
+    cleaned_series = cleaned_series[cleaned_series != "nan"]
+    cleaned_series = cleaned_series[cleaned_series != ""]
+    
     if cleaned_series.empty:
         return ["N/A"]
     counts = Counter(cleaned_series)
@@ -361,43 +450,104 @@ if search_button and search_query:
         if not client_df.empty:
             client_df_sorted = client_df.sort_values(by="Data emplacamento", ascending=False)
             latest_record = client_df_sorted.iloc[0]
-
+            
             client_name = latest_record["NOME DO CLIENTE"]
-            client_cnpj_formatted = latest_record["CNPJ CLIENTE"]
-            city_str = latest_record["NO_CIDADE"] if "NO_CIDADE" in latest_record and pd.notna(latest_record["NO_CIDADE"]) else "N/A"
-            client_address = latest_record[NOME_COLUNA_ENDERECO]
-            client_phone = latest_record[NOME_COLUNA_TELEFONE]
-
-            total_plated = len(client_df)
-            last_plate_date_obj = client_df["Data emplacamento"].dropna().max()
-            last_plate_date_str = last_plate_date_obj.strftime("%d/%m/%Y") if pd.notna(last_plate_date_obj) else "N/A"
-            most_frequent_model = get_modes(client_df["Modelo"])
-            most_frequent_brand = get_modes(client_df["Marca"])
-            most_frequent_segment = get_modes(client_df["Segmento"])
-            most_frequent_dealer = get_modes(client_df["Concessionário"])
-
-            st.markdown(f"#### Detalhes de: {client_name}")
-
-            col1_info, col2_info = st.columns(2)
-            with col1_info:
-                st.markdown(f'<div class="info-card"><span class="label">Nome do Cliente:</span><span class="value">{client_name}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">CNPJ:</span><span class="value">{client_cnpj_formatted}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Endereço:</span><span class="value">{client_address}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Modelo(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_model)}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Concessionária(s) Mais Frequente(s):</span><span class="value">{format_list(most_frequent_dealer)}</span></div>', unsafe_allow_html=True)
-
-            with col2_info:
-                st.markdown(f'<div class="info-card"><span class="label">Cidade:</span><span class="value">{city_str}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Telefone:</span><span class="value">{client_phone}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Total Emplacado (na base):</span><span class="value">{total_plated}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Último Emplacamento:</span><span class="value">{last_plate_date_str}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Marca(s) Mais Comprada(s):</span><span class="value">{format_list(most_frequent_brand)}</span></div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="info-card"><span class="label">Segmento(s) Mais Comprado(s):</span><span class="value">{format_list(most_frequent_segment)}</span></div>', unsafe_allow_html=True)
-
-            st.divider()
-
-            # --- Previsão e Insight (MOVENDO PARA CIMA DO GRÁFICO) ---
-            st.markdown("#### Previsão e Insight de Vendas")
+            client_cnpj = latest_record["CNPJ CLIENTE"]
+            client_address = latest_record.get(NOME_COLUNA_ENDERECO, "N/A")
+            client_phone = latest_record.get(NOME_COLUNA_TELEFONE, "N/A")
+            client_city = latest_record.get(NOME_COLUNA_CIDADE, "N/A")
+            
+            # Calcular estatísticas para informações iniciais
+            total_plated = len(client_df_sorted)
+            first_plate_date = client_df_sorted["Data emplacamento"].min()
+            last_plate_date = client_df_sorted["Data emplacamento"].max()
+            
+            first_plate_date_str = first_plate_date.strftime("%d/%m/%Y") if pd.notna(first_plate_date) else "N/A"
+            last_plate_date_str = last_plate_date.strftime("%d/%m/%Y") if pd.notna(last_plate_date) else "N/A"
+            last_plate_date_obj = last_plate_date if pd.notna(last_plate_date) else None
+            
+            # Obter preferências do cliente
+            preferred_models = get_modes(client_df["Modelo"])
+            preferred_brands = get_modes(client_df["Marca"])
+            preferred_concessionarias = get_modes(client_df[NOME_COLUNA_CONCESSIONARIO])
+            
+            # Layout exatamente como na imagem de exemplo
+            col_left, col_right = st.columns(2)
+            
+            with col_left:
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Nome do Cliente:</span>
+                    <span class="value">{client_name}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">CNPJ:</span>
+                    <span class="value">{client_cnpj}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Endereço:</span>
+                    <span class="value">{client_address}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Modelo(s) Mais Comprado(s):</span>
+                    <span class="value">{format_list(preferred_models)}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Concessionária(s) Mais Frequente(s):</span>
+                    <span class="value">{format_list(preferred_concessionarias)}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with col_right:
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Cidade:</span>
+                    <span class="value">{client_city}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Telefone:</span>
+                    <span class="value">{client_phone}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Total Emplacado (na base):</span>
+                    <span class="value">{total_plated}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Último Emplacamento:</span>
+                    <span class="value">{last_plate_date_str}</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div class="info-card">
+                    <span class="label">Marca(s) Mais Comprada(s):</span>
+                    <span class="value">{format_list(preferred_brands)}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown("#### Previsão e Insights")
+            
             valid_dates = client_df["Data emplacamento"].dropna().tolist()
             prediction_text, predicted_date_obj = calculate_next_purchase_prediction(valid_dates)
             sales_pitch = get_sales_pitch(last_plate_date_obj, predicted_date_obj, total_plated)
@@ -422,6 +572,18 @@ if search_button and search_query:
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("Não há histórico de compras suficiente para gerar gráfico.")
+            
+            # NOVA SEÇÃO: Lista detalhada de emplacamentos com chassi, modelo e concessionária
+            st.markdown("#### Detalhamento dos Emplacamentos")
+            
+            # Preparar DataFrame para exibição
+            detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", NOME_COLUNA_CONCESSIONARIO]].copy()
+            detail_df["Data emplacamento"] = detail_df["Data emplacamento"].dt.strftime("%d/%m/%Y")
+            detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
+            
+            # Exibir tabela detalhada
+            st.dataframe(detail_df, use_container_width=True)
+            
         else:
             st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
 elif search_button and not search_query:
