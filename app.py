@@ -69,6 +69,18 @@ def load_data(file_path_or_buffer):
     """Carrega e pré-processa os dados do arquivo Excel."""
     try:
         df = pd.read_excel(file_path_or_buffer)
+        # Verifica e padroniza a coluna de PLACA
+        placa_colunas_possiveis = ["PLACA", "Placa", "placa", "PLACA VEÍCULO", "Placa Veículo"]
+        placa_encontrada = None
+        for col in placa_colunas_possiveis:
+            if col in df.columns:
+                placa_encontrada = col
+                break
+        if placa_encontrada:
+            df.rename(columns={placa_encontrada: "PLACA"}, inplace=True)
+            df["PLACA"] = df["PLACA"].astype(str).str.strip().str.upper()
+        else:
+            df["PLACA"] = "N/A"
         df["Data emplacamento"] = pd.to_datetime(df["Data emplacamento"], errors="coerce", dayfirst=True)
         df["CNPJ CLIENTE"] = df["CNPJ CLIENTE"].astype(str).str.strip()
         df["NOME DO CLIENTE"] = df["NOME DO CLIENTE"].astype(str).str.strip()
