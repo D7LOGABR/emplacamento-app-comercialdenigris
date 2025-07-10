@@ -421,9 +421,10 @@ if search_button and search_query:
             detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
             
             # Exibir tabela detalhada
-            st.dataframe(detail_df, use_container_width=True)            
-        else:
-            st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
+if not detail_df.empty:
+    st.dataframe(detail_df, use_container_width=True)
+else:
+    st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
 elif search_button and not search_query:
     st.warning("Por favor, digite um nome ou CNPJ para buscar.")
 else:
