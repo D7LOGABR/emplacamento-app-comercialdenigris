@@ -8,7 +8,7 @@ from io import BytesIO
 
 # --- Configuração da Página ---
 st.set_page_config(
-    page_title="Emplacamentos De Nigris",
+    page_title="Emplacamentos Comercial De Nigris",
     page_icon="🚚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -107,7 +107,34 @@ def load_data(file_path_or_buffer):
         # Verificar e normalizar nomes de colunas (remover espaços extras, etc.)
         df.columns = [col.strip() for col in df.columns]
         
-        # Verificar se a coluna concessionário existe
+        # **NOVO: Processamento da coluna PLACA**
+        # Verificar se a coluna PLACA existe e a normalizar para busca
+        if "PLACA" in df.columns:
+            df["PLACA"] = df["PLACA"].astype(str).str.strip().str.upper()
+            # Remove hífens e espaços para normalização na busca
+            df["PLACA_NORMALIZED"] = df["PLACA"].str.replace("-", "").str.replace(" ", "").str.upper()
+        else:
+            # Verificar variações do nome da coluna PLACA
+            placa_variations = ["PLACA", "Placa", "placa", "PLACA VEÍCULO", "Placa Veículo", 
+                               "PLACA_VEICULO", "NÚMERO DA PLACA", "Numero da Placa"]
+            found_placa_col = None
+            
+            for var in placa_variations:
+                if var in df.columns:
+                    found_placa_col = var
+                    break
+            
+            if found_placa_col:
+                df.rename(columns={found_placa_col: "PLACA"}, inplace=True)
+                df["PLACA"] = df["PLACA"].astype(str).str.strip().str.upper()
+                df["PLACA_NORMALIZED"] = df["PLACA"].str.replace("-", "").str.replace(" ", "").str.upper()
+                print(f"Coluna '{found_placa_col}' renomeada para 'PLACA'")
+            else:
+                df["PLACA"] = "N/A"
+                df["PLACA_NORMALIZED"] = ""
+                print("Coluna 'PLACA' não encontrada. Criada com valor padrão 'N/A'")
+        
+        # Verificar e normalizar a coluna concessionário
         if NOME_COLUNA_CONCESSIONARIO not in df.columns:
             # Verificar variações do nome da coluna concessionário
             concessionario_variations = ["concessionário", "concessionario", "Concessionário", "Concessionaria", 
@@ -306,7 +333,7 @@ with col1_header:
         st.warning("Logo colorido não encontrado.")
 with col2_header:
     st.title("Consulta de Emplacamentos")
-    st.markdown("**Ferramenta interna De Nigris** - Busque por cliente ou veja o resumo geral.")
+    st.markdown("**Ferramenta interna Comercial De Nigris** - Busque por cliente, placa ou CNPJ e veja o resumo geral.")
 
 st.divider()
 
@@ -398,8 +425,8 @@ if df_full is None or df_full.empty:
     st.stop()
 
 # --- Barra de Busca e Filtros --- 
-st.subheader("Buscar Cliente Específico")
-search_query = st.text_input("Digite o Nome ou CNPJ do cliente:", "", key="search_input")
+st.subheader("Buscar Cliente, Placa ou CNPJ")
+search_query = st.text_input("Digite o Nome, CNPJ ou Placa do cliente:", "", key="search_input")
 search_button = st.button("Buscar", key="search_button")
 
 st.sidebar.header("Filtros Gerais (Afetam Busca e Resumo)")
@@ -422,17 +449,24 @@ st.divider()
 if search_button and search_query:
     st.markdown(f"### Resultados da Busca por: '{search_query}'")
     query_normalized = ''.join(filter(str.isdigit, str(search_query)))
+    
+    # **NOVO: Normalização da busca por placa**
+    query_placa_normalized = search_query.replace("-", "").replace(" ", "").upper()
 
     mask = (
         df_display["NOME DO CLIENTE"].str.contains(search_query, case=False, na=False)
     )
     if query_normalized and len(query_normalized) > 5:
          mask = mask | df_display["CNPJ_NORMALIZED"].str.contains(query_normalized, case=False, na=False)
+    
+    # **NOVO: Adicionar busca por placa**
+    if query_placa_normalized:
+        mask = mask | df_display["PLACA_NORMALIZED"].str.contains(query_placa_normalized, case=False, na=False)
 
     results_df = df_display[mask]
 
     if results_df.empty:
-        st.warning("Cliente não encontrado na base de dados (considerando os filtros aplicados, se houver).")
+        st.warning("Cliente ou placa não encontrado na base de dados (considerando os filtros aplicados, se houver).")
     else:
         unique_cnpjs = results_df["CNPJ_NORMALIZED"].unique()
 
@@ -573,13 +607,13 @@ if search_button and search_query:
             else:
                 st.warning("Não há histórico de compras suficiente para gerar gráfico.")
             
-            # NOVA SEÇÃO: Lista detalhada de emplacamentos com chassi, modelo e concessionária
+            # **ATUALIZADA: Lista detalhada de emplacamentos incluindo PLACA**
             st.markdown("#### Detalhamento dos Emplacamentos")
             
-            # Preparar DataFrame para exibição
-            detail_df = client_df_sorted[["Data emplacamento", "Chassi", "Modelo", NOME_COLUNA_CONCESSIONARIO]].copy()
+            # Preparar DataFrame para exibição incluindo a coluna PLACA
+            detail_df = client_df_sorted[["Data emplacamento", "PLACA", "Chassi", "Modelo", NOME_COLUNA_CONCESSIONARIO]].copy()
             detail_df["Data emplacamento"] = detail_df["Data emplacamento"].dt.strftime("%d/%m/%Y")
-            detail_df.columns = ["Data", "Chassi", "Modelo", "Concessionária"]
+            detail_df.columns = ["Data", "Placa", "Chassi", "Modelo", "Concessionária"]
             
             # Exibir tabela detalhada
             st.dataframe(detail_df, use_container_width=True)
@@ -587,7 +621,7 @@ if search_button and search_query:
         else:
             st.warning("Cliente encontrado, mas sem registros de emplacamento válidos.")
 elif search_button and not search_query:
-    st.warning("Por favor, digite um nome ou CNPJ para buscar.")
+    st.warning("Por favor, digite um nome, CNPJ ou placa para buscar.")
 else:
     # Se nenhuma busca foi feita, exibir o resumo geral
     st.divider()
@@ -633,4 +667,4 @@ if os.path.exists(LOGO_WHITE_PATH):
     st.sidebar.image(LOGO_WHITE_PATH, use_container_width=True)
 else:
     st.sidebar.warning("Logo branco não encontrado.")
-st.sidebar.caption("© De Nigris Distribuidora")
+st.sidebar.caption("© Comercial De Nigris")
