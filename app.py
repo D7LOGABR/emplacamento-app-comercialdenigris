@@ -715,3 +715,17 @@ if st.button("🔍 Listar Clientes Inativos ( > 1 ano sem comprar )"):
         st.warning(f"🚨 {len(clientes_inativos)} clientes estão há mais de 1 ano sem comprar!")
 
         st.dataframe(clientes_inativos, use_container_width=True)
+
+
+
+
+        # Botão para download em XLSX
+        excel_buffer = BytesIO()
+        clientes_inativos.to_excel(excel_buffer, index=False, engine='openpyxl')
+        excel_buffer.seek(0)
+        st.download_button(
+            label="📥 Baixar Lista de Clientes Inativos (XLSX)",
+            data=excel_buffer,
+            file_name="clientes_inativos.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
