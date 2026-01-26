@@ -6,6 +6,29 @@ from collections import Counter
 import os
 from io import BytesIO
 
+# =================== BLOQUEIO DE ACESSO ===================
+SENHA_CORRETA = "23290000"
+
+if "autenticado" not in st.session_state:
+    st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    st.markdown("## 🔒 Acesso Restrito")
+    st.markdown("Digite a senha para acessar o sistema.")
+
+    senha_digitada = st.text_input("Senha", type="password")
+
+    if st.button("Entrar"):
+        if senha_digitada == SENHA_CORRETA:
+            st.session_state.autenticado = True
+            st.success("✅ Acesso liberado")
+            st.rerun()
+        else:
+            st.error("❌ Senha incorreta")
+
+    st.stop()
+# =========================================================
+
 # --- Configuração da Página ---
 st.set_page_config(
     page_title="Emplacamentos Comercial De Nigris",
@@ -17,25 +40,23 @@ st.set_page_config(
 # --- Estilo CSS Customizado ---
 st.markdown("""
 <style>
-    /* Ajustar padding do container principal */
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
         padding-left: 3rem;
         padding-right: 3rem;
     }
-    /* Estilo para os cards de informação */
     .info-card {
         background-color: #f8f9fa;
         border-radius: 8px;
         padding: 15px;
         margin-bottom: 20px;
-        border-left: 5px solid #0055a4; /* Azul De Nigris */
+        border-left: 5px solid #0055a4;
         position: relative;
     }
     .info-card .label {
         font-weight: bold;
-        color: #003366; /* Azul escuro De Nigris */
+        color: #003366;
         display: block;
         margin-bottom: 5px;
         font-size: 16px;
@@ -45,13 +66,11 @@ st.markdown("""
         font-size: 18px;
         font-weight: 500;
     }
-    /* Títulos */
     h1, h2, h3 {
-        color: #003366; /* Azul escuro De Nigris */
+        color: #003366;
     }
-    /* Botão de busca */
     .stButton>button {
-        background-color: #0055a4; /* Azul De Nigris */
+        background-color: #0055a4;
         color: white;
         border-radius: 5px;
         padding: 0.5rem 1rem;
@@ -60,18 +79,15 @@ st.markdown("""
         background-color: #003366;
         color: white;
     }
-    /* Mensagens de erro/info */
     .stAlert p {
-        font-size: 1rem; /* Ajustar tamanho da fonte nas mensagens */
+        font-size: 1rem;
     }
-    /* Estilo para métricas de resumo */
     .stMetric {
         background-color: #e9ecef;
         border-radius: 8px;
         padding: 10px 15px;
-        border-left: 5px solid #6c757d; /* Cinza */
+        border-left: 5px solid #6c757d;
     }
-    /* Estilo para tabela de detalhamento */
     .dataframe {
         font-size: 0.9rem;
     }
@@ -92,11 +108,10 @@ DEFAULT_EXCEL_FILE = os.path.join(DATA_DIR, "EMPLACAMENTO ANUAL - CAMINHÕES.xls
 LOGO_COLOR_PATH = os.path.join(DATA_DIR, "logo_denigris_colorido.png")
 LOGO_WHITE_PATH = os.path.join(DATA_DIR, "logo_denigris_branco.png")
 
-# --- Nomes das Colunas Opcionais (Definidos Globalmente) ---
 NOME_COLUNA_ENDERECO = "ENDEREÇO COMPLETO"
 NOME_COLUNA_TELEFONE = "TELEFONE1"
-NOME_COLUNA_CIDADE = "NO_CIDADE"  # Coluna para cidade
-NOME_COLUNA_CONCESSIONARIO = "concessionário"  # Nome exato da coluna de concessionário (coluna F)
+NOME_COLUNA_CIDADE = "NO_CIDADE"
+NOME_COLUNA_CONCESSIONARIO = "concessionário"
 
 # --- Funções de Carregamento de Dados ---
 def load_data(file_path_or_buffer):
